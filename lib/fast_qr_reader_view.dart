@@ -284,6 +284,14 @@ class QRReaderController extends ValueNotifier<QRReaderValue> {
     }
   }
 
+  Future<bool> setTorch(bool turnOn) async {
+    try {
+      return await _channel.invokeMethod('setTorch', <String, dynamic>{'turnOn': turnOn});
+    } on PlatformException catch (e) {
+      throw new QRReaderException(e.code, e.message);
+    }
+  }
+
   /// Start a QR scan.
   ///
   /// Throws a [QRReaderException] if the capture fails.

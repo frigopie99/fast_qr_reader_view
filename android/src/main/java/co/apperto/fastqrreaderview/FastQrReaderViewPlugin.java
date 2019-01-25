@@ -8,6 +8,7 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.ImageFormat;
 import android.graphics.SurfaceTexture;
+import android.hardware.Camera;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraManager;
@@ -32,6 +33,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.lang.reflect.Field;
 
 import co.apperto.fastqrreaderview.common.CameraSource;
 import co.apperto.fastqrreaderview.common.CameraSourcePreview;
@@ -219,6 +221,9 @@ public class FastQrReaderViewPlugin implements MethodCallHandler {
             case "stopScanning":
                 stopScanning(result);
                 break;
+            case "setTorch":
+                setTorch(result, call.argument("turnOn").equals(true));
+                break;
             case "dispose": {
                 if (camera != null) {
                     camera.dispose();
@@ -259,6 +264,45 @@ public class FastQrReaderViewPlugin implements MethodCallHandler {
         }
     }
 
+    void setTorch(@NonNull Result result, boolean turnOn) {
+        Camera cam = this.getCamera(camera.cameraSource);
+        boolean success = false;
+
+        if (cam != null) {
+            try {
+                Camera.Parameters param = cam.getParameters();
+                param.setFlashMode(turnOn?  Camera.Parameters.FLASH_MODE_TORCH : Camera.Parameters.FLASH_MODE_OFF);
+                cam.setParameters(param);
+                success = true;
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        result.success(success);
+    }
+
+    private static Camera getCamera(@NonNull CameraSource cameraSource) {
+        Field[] declaredFields = CameraSource.class.getDeclaredFields();
+    
+        for (Field field : declaredFields) {
+            if (field.getType() == Camera.class) {
+                field.setAccessible(true);
+                try {
+                    Camera camera = (Camera) field.get(cameraSource);
+                    if (camera != null) {
+                        return camera;
+                    }
+                    return null;
+                } catch (IllegalAccessException e) {
+                    e.printStackTrace();
+                }
+                break;
+            }
+        }
+
+        return null;
+    }
 
     void startScanning(@NonNull Result result) {
         camera.scanning = true;
